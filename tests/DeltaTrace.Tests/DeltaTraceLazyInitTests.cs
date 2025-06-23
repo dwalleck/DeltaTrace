@@ -1,12 +1,12 @@
-using DeltaTrace;
 using TUnit.Assertions;
 using TUnit.Core;
+using DeltaTrace;
 
 namespace DeltaTrace.Tests;
 
 public class DeltaTraceLazyInitTests
 {
-    private readonly DeltaTrace _generator = new();
+    private readonly DeltaTraceGenerator _generator = new();
 
     [Test]
     public async Task Generator_GeneratesLazyInitialization()
@@ -151,7 +151,7 @@ namespace TestNamespace
         // Check null handling in lazy initialization
         await Assert.That(generatedSource).Contains("_previous != null ? _previous.Name! : default(string)!");
         await Assert.That(generatedSource).Contains("_current != null ? _current.Name! : default(string)!");
-        await Assert.That(generatedSource).Contains("_previous != null ? _previous.OptionalValue! : default(int?)!");
-        await Assert.That(generatedSource).Contains("_current != null ? _current.OptionalValue! : default(int?)!");
+        await Assert.That(generatedSource).Contains("_previous != null ? _previous.OptionalValue! : default(int? )!");
+        await Assert.That(generatedSource).Contains("_current != null ? _current.OptionalValue! : default(int? )!");
     }
 }

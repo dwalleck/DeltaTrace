@@ -1,13 +1,13 @@
-using DeltaTrace;
 using Microsoft.CodeAnalysis;
 using TUnit.Assertions;
 using TUnit.Core;
+using DeltaTrace;
 
 namespace DeltaTrace.Tests;
 
 public class DeltaTraceInitializationTests
 {
-    private readonly DeltaTrace _generator = new();
+    private readonly DeltaTraceGenerator _generator = new();
 
     [Test]
     public async Task Generator_InitializesWithCorrectReceiverType()
@@ -40,8 +40,8 @@ namespace TestNamespace
 
         var result = await SourceGeneratorTestHelper.RunGeneratorAsync(_generator, source);
 
-        // Should not throw and should generate no output
-        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(0);
+        // Should not throw and should generate only base classes
+        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(1);
         await Assert.That(result.Diagnostics.Length).IsEqualTo(0);
     }
 
@@ -56,8 +56,8 @@ namespace TestNamespace
 
         var result = await SourceGeneratorTestHelper.RunGeneratorAsync(_generator, source);
 
-        // Should handle gracefully
-        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(0);
+        // Should handle gracefully and generate only base classes
+        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(1);
     }
 
     [Test]
@@ -87,36 +87,4 @@ namespace TestNamespace
         await Assert.That(baseClassFile).IsNotNull();
     }
 
-    [Test]
-    public async Task SyntaxReceiver_CollectsOnlyTypesWithAttributes()
-    {
-        const string source = @"
-using DeltaTrace;
-
-namespace TestNamespace
-{
-    public class NoAttributeClass { }
-    
-    [DeltaTrace]
-    public class WithAttributeClass { }
-    
-    public struct NoAttributeStruct { }
-    
-    [DeltaTrace]
-    public struct WithAttributeStruct { }
-}";
-
-        var receiver = new DeltaTraceSyntaxReceiver();
-        var syntaxTree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source);
-        var root = syntaxTree.GetRoot();
-
-        foreach (var node in root.DescendantNodes())
-        {
-            receiver.OnVisitSyntaxNode(node);
-        }
-
-        // Should collect only types with attribute lists
-        await Assert.That(receiver.CandidateTypes.Count).IsEqualTo(2);
-        await Assert.That(receiver.CandidateTypes.All(t => t.AttributeLists.Count > 0)).IsTrue();
-    }
 }

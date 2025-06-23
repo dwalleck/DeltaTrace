@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <RootNamespace>DeltaTrace.Tests</RootNamespace>
     <AssemblyName>DeltaTrace.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\DataDispatcherFunction2.SourceGenerators\DataDispatcherFunction2.SourceGenerators.csproj" />
+    <ProjectReference Include="..\..\src\DeltaTrace\DeltaTrace.csproj" />
   </ItemGroup>
 
 </Project>

@@ -8,7 +8,7 @@ namespace DeltaTrace.Tests;
 public static class SourceGeneratorTestHelper
 {
     public static Task<GeneratorDriverRunResult> RunGeneratorAsync(
-        ISourceGenerator generator,
+        IIncrementalGenerator generator,
         string source,
         params Assembly[] additionalAssemblies)
     {

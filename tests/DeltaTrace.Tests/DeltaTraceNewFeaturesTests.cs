@@ -1,13 +1,13 @@
-using DeltaTrace;
 using Microsoft.CodeAnalysis;
 using TUnit.Assertions;
 using TUnit.Core;
+using DeltaTrace;
 
 namespace DeltaTrace.Tests;
 
 public class DeltaTraceNewFeaturesTests
 {
-    private readonly DeltaTrace _generator = new();
+    private readonly DeltaTraceGenerator _generator = new();
 
     [Test]
     public async Task Generator_CreatesGetDeltasMethod_ReturnsPropertyChangeObjects()
@@ -153,7 +153,7 @@ namespace TestNamespace
         
         // Should check HasAnyDeltas for nested types but return the property itself
         await Assert.That(generatedSource).Contains("if (Nested.HasAnyDeltas)");
-        await Assert.That(generatedSource).Contains("yield return new DeltaInfo(\"Nested\", _previous?.Nested, _current?.Nested, typeof(NestedModel));");
+        await Assert.That(generatedSource).Contains("yield return new DeltaInfo(\"Nested\", _previous?.Nested, _current?.Nested, typeof(TestNamespace.NestedModel));");
     }
 
     [Test]

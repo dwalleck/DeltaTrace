@@ -1,13 +1,13 @@
-using DeltaTrace;
 using Microsoft.CodeAnalysis;
 using TUnit.Assertions;
 using TUnit.Core;
+using DeltaTrace;
 
 namespace DeltaTrace.Tests;
 
 public class DeltaTraceTests
 {
-    private readonly DeltaTrace _generator = new();
+    private readonly DeltaTraceGenerator _generator = new();
 
     [Test]
     public async Task Generator_WhenNoDeltaTraceAttribute_GeneratesNothing()
@@ -24,8 +24,12 @@ namespace TestNamespace
 
         var result = await SourceGeneratorTestHelper.RunGeneratorAsync(_generator, source);
 
-        // Without the DeltaTraceAttribute type in the compilation, nothing is generated
-        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(0);
+        // With IIncrementalGenerator, base classes are always generated
+        await Assert.That(result.GeneratedTrees.Length).IsEqualTo(1);
+        
+        // But no delta classes should be generated
+        var deltaFiles = result.GeneratedTrees.Where(t => t.FilePath.EndsWith("Delta.g.cs")).ToList();
+        await Assert.That(deltaFiles.Count).IsEqualTo(0);
     }
 
     [Test]

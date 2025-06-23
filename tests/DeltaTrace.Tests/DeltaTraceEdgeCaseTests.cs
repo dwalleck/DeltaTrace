@@ -1,12 +1,12 @@
-using DeltaTrace;
 using TUnit.Assertions;
 using TUnit.Core;
+using DeltaTrace;
 
 namespace DeltaTrace.Tests;
 
 public class DeltaTraceEdgeCaseTests
 {
-    private readonly DeltaTrace _generator = new();
+    private readonly DeltaTraceGenerator _generator = new();
 
     [Test]
     public async Task Generator_HandlesComplexPropertyTypes()
@@ -38,10 +38,10 @@ namespace TestNamespace
         await Assert.That(deltaFile).IsNotNull();
 
         var generatedSource = deltaFile!.GetText().ToString();
-        await Assert.That(generatedSource).Contains("PropertyDelta<Dictionary<string, int>> Mappings");
-        await Assert.That(generatedSource).Contains("PropertyDelta<List<string>> Tags");
+        await Assert.That(generatedSource).Contains("PropertyDelta<System.Collections.Generic.Dictionary<string, int>> Mappings");
+        await Assert.That(generatedSource).Contains("PropertyDelta<System.Collections.Generic.List<string>> Tags");
         await Assert.That(generatedSource).Contains("PropertyDelta<int[]> Numbers");
-        await Assert.That(generatedSource).Contains("PropertyDelta<Guid?> NullableGuid");
+        await Assert.That(generatedSource).Contains("PropertyDelta<System.Guid?> NullableGuid");
     }
 
     [Test]

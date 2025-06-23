@@ -3,14 +3,19 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using static Microsoft.CodeAnalysis.CSharp.SyntaxFactory;
 
 namespace DeltaTrace;
 
+/// <summary>
+/// A source generator that creates delta tracking classes for types marked with the [DeltaTrace] attribute.
+/// </summary>
 [Generator]
-public class DeltaTrace : ISourceGenerator
+public class DeltaTraceGenerator : IIncrementalGenerator
 {
     private static MemberDeclarationSyntax ParseMember(string code)
     {
@@ -27,47 +32,96 @@ public class DeltaTrace : ISourceGenerator
         var classDeclaration = root.DescendantNodes().OfType<ClassDeclarationSyntax>().First();
         return classDeclaration.Members.ToList();
     }
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        context.RegisterForSyntaxNotifications(() => new DeltaTraceSyntaxReceiver());
+        // Generate base classes once
+        context.RegisterPostInitializationOutput(ctx => GenerateBaseClasses(ctx));
+
+        // Create a syntax provider for types with attributes
+        var typeDeclarations = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                predicate: static (s, _) => IsCandidateForGeneration(s),
+                transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx))
+            .Where(static m => m is not null);
+
+        // Combine with compilation to get attribute symbols
+        var compilationAndTypes = context.CompilationProvider
+            .Combine(typeDeclarations.Collect());
+
+        // Generate output for each type
+        context.RegisterSourceOutput(compilationAndTypes,
+            static (spc, source) => Execute(source.Left, source.Right!, spc));
     }
 
-    public void Execute(GeneratorExecutionContext context)
+    private static bool IsCandidateForGeneration(SyntaxNode node)
     {
-        if (!(context.SyntaxReceiver is DeltaTraceSyntaxReceiver receiver))
+        return node is TypeDeclarationSyntax { AttributeLists.Count: > 0 };
+    }
+
+    private static TypeDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+    {
+        var typeDeclaration = (TypeDeclarationSyntax)context.Node;
+
+        // Check if it has any attribute that could be DeltaTrace
+        foreach (var attributeList in typeDeclaration.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                var symbol = context.SemanticModel.GetSymbolInfo(attribute).Symbol;
+                if (symbol is not IMethodSymbol attributeSymbol)
+                    continue;
+
+                var attributeType = attributeSymbol.ContainingType;
+                var fullName = attributeType.ToDisplayString();
+
+                if (fullName == "DeltaTrace.DeltaTraceAttribute" || 
+                    fullName == "DeltaTraceAttribute" ||
+                    attributeType.Name == "DeltaTraceAttribute")
+                {
+                    return typeDeclaration;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static void Execute(Compilation compilation, ImmutableArray<TypeDeclarationSyntax> types, SourceProductionContext context)
+    {
+        if (types.IsDefaultOrEmpty)
             return;
 
         // Get the attribute symbols
-        var deltaTraceAttribute = context.Compilation.GetTypeByMetadataName("DeltaTrace.DeltaTraceAttribute");
-        var ignoreDeltaAttribute = context.Compilation.GetTypeByMetadataName("DeltaTrace.IgnoreDeltaAttribute");
+        var deltaTraceAttribute = compilation.GetTypeByMetadataName("DeltaTrace.DeltaTraceAttribute");
+        var ignoreDeltaAttribute = compilation.GetTypeByMetadataName("DeltaTrace.IgnoreDeltaAttribute");
 
         if (deltaTraceAttribute == null)
             return;
 
-        // Generate base classes first
-        GenerateBaseClasses(context);
-
-        // Process each type with [DeltaTrace]
-        foreach (var typeDeclaration in receiver.CandidateTypes)
+        // Process each type
+        foreach (var typeDeclaration in types.Distinct())
         {
-            var model = context.Compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
+            var model = compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
             var typeSymbol = model.GetDeclaredSymbol(typeDeclaration);
 
-            var deltaTraceAttr = typeSymbol?.GetAttributes()
+            if (typeSymbol == null)
+                continue;
+
+            var deltaTraceAttr = typeSymbol.GetAttributes()
                 .FirstOrDefault(a => a.AttributeClass?.Equals(deltaTraceAttribute, SymbolEqualityComparer.Default) == true);
 
             if (deltaTraceAttr == null)
                 continue;
 
             // Generate the delta tracker for this type
-            var compilationUnit = GenerateDeltaTracker(typeSymbol, deltaTraceAttr, ignoreDeltaAttribute!);
+            var compilationUnit = GenerateDeltaTracker(typeSymbol, deltaTraceAttr, ignoreDeltaAttribute);
             var source = compilationUnit.NormalizeWhitespace().ToFullString();
 
             context.AddSource($"{typeSymbol.Name}Delta.g.cs", SourceText.From(source, Encoding.UTF8));
         }
     }
 
-    private void GenerateBaseClasses(GeneratorExecutionContext context)
+    private static void GenerateBaseClasses(IncrementalGeneratorPostInitializationContext context)
     {
         var source = @"// <auto-generated/>
 #nullable enable
@@ -143,7 +197,7 @@ namespace DeltaTrace.Generated
     }
 
 
-    private CompilationUnitSyntax GenerateDeltaTracker(
+    private static CompilationUnitSyntax GenerateDeltaTracker(
         INamedTypeSymbol typeSymbol,
         AttributeData deltaTraceAttr,
         INamedTypeSymbol? ignoreDeltaAttribute)
@@ -179,7 +233,7 @@ namespace {typeSymbol.ContainingNamespace.ToDisplayString()}
         return CSharpSyntaxTree.ParseText(sb.ToString()).GetCompilationUnitRoot();
     }
 
-    private string GenerateDeltaClassString(INamedTypeSymbol typeSymbol, string deltaClassName, List<IPropertySymbol> properties, DeltaTraceOptions options)
+    private static string GenerateDeltaClassString(INamedTypeSymbol typeSymbol, string deltaClassName, List<IPropertySymbol> properties, DeltaTraceOptions options)
     {
         var sb = new StringBuilder();
         
@@ -408,7 +462,7 @@ namespace {typeSymbol.ContainingNamespace.ToDisplayString()}
         return sb.ToString();
     }
 
-    private string GenerateExtensionClassString(INamedTypeSymbol typeSymbol, string deltaClassName)
+    private static string GenerateExtensionClassString(INamedTypeSymbol typeSymbol, string deltaClassName)
     {
         return $@"
     public static class {typeSymbol.Name}DeltaExtensions
@@ -421,7 +475,7 @@ namespace {typeSymbol.ContainingNamespace.ToDisplayString()}
     }}";
     }
 
-    private List<IPropertySymbol> GetTrackableProperties(INamedTypeSymbol typeSymbol, INamedTypeSymbol? ignoreAttribute)
+    private static List<IPropertySymbol> GetTrackableProperties(INamedTypeSymbol typeSymbol, INamedTypeSymbol? ignoreAttribute)
     {
         return typeSymbol.GetMembers()
             .OfType<IPropertySymbol>()
@@ -434,7 +488,7 @@ namespace {typeSymbol.ContainingNamespace.ToDisplayString()}
             .ToList();
     }
 
-    private DeltaTraceOptions ParseDeltaTraceOptions(AttributeData attribute)
+    private static DeltaTraceOptions ParseDeltaTraceOptions(AttributeData attribute)
     {
         var options = new DeltaTraceOptions();
 
@@ -471,16 +525,4 @@ namespace {typeSymbol.ContainingNamespace.ToDisplayString()}
         public string DeltaSuffix { get; set; } = "Delta";
     }
 
-    public class DeltaTraceSyntaxReceiver : ISyntaxReceiver
-    {
-        public List<TypeDeclarationSyntax> CandidateTypes { get; } = new List<TypeDeclarationSyntax>();
-
-        public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
-        {
-            if (syntaxNode is TypeDeclarationSyntax { AttributeLists.Count: > 0 } typeDeclaration)
-            {
-                CandidateTypes.Add(typeDeclaration);
-            }
-        }
-    }
 }
