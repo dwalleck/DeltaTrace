@@ -8,6 +8,27 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <RootNamespace>DeltaTrace</RootNamespace>
     <AssemblyName>DeltaTrace</AssemblyName>
+
+    <!-- NuGet Package Metadata -->
+    <PackageId>DeltaTrace</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Daryl Walleck</Authors>
+    <Company>Tethys Systems</Company>
+    <Description>A C# source generator that creates delta/change tracking classes for data models. Automatically generates classes that track property changes, providing a clean and efficient way to monitor modifications in your data objects.</Description>
+    <Copyright>Copyright © 2025</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/yourusername/DeltaTrace</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/yourusername/DeltaTrace</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>source-generator;delta;change-tracking;roslyn;code-generation;csharp</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>Initial release of DeltaTrace source generator.</PackageReleaseNotes>
+
+    <!-- Source Generator Packaging Configuration -->
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <NoPackageAnalysis>true</NoPackageAnalysis>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,6 +37,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Package the generator in the analyzer directory -->
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    
+    <!-- Include the README file -->
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
