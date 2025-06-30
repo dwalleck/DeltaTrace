@@ -17,8 +17,8 @@
     <Description>A C# source generator that creates delta/change tracking classes for data models. Automatically generates classes that track property changes, providing a clean and efficient way to monitor modifications in your data objects.</Description>
     <Copyright>Copyright © 2025</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/yourusername/DeltaTrace</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/yourusername/DeltaTrace</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/dwalleck/DeltaTrace</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/dwalleck/DeltaTrace</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>source-generator;delta;change-tracking;roslyn;code-generation;csharp</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>

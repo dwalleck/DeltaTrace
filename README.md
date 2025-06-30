@@ -281,6 +281,122 @@ dotnet test
 dotnet run -c Release --project benchmarks/DeltaTrace.Benchmarks
 ```
 
+## Releasing
+
+### Publishing to NuGet
+
+DeltaTrace is published to NuGet.org. Here's the release process:
+
+#### Prerequisites
+
+1. Ensure you have a NuGet.org account and API key
+2. Install the dotnet CLI if not already installed
+3. Configure your NuGet API key:
+   ```bash
+   dotnet nuget push --api-key YOUR_API_KEY --source https://api.nuget.org/v3/index.json
+   ```
+
+#### Release Process
+
+1. **Update Version Number**
+   
+   Edit the version in `src/DeltaTrace/DeltaTrace.csproj`:
+   ```xml
+   <Version>1.0.1</Version>
+   ```
+
+2. **Update Release Notes**
+   
+   Update the `PackageReleaseNotes` in the same file:
+   ```xml
+   <PackageReleaseNotes>
+   - Fixed issue with nested object tracking
+   - Added support for record types
+   - Performance improvements
+   </PackageReleaseNotes>
+   ```
+
+3. **Build and Test**
+   ```bash
+   # Clean build
+   dotnet clean
+   dotnet build -c Release
+   
+   # Run all tests
+   dotnet test -c Release
+   ```
+
+4. **Create the NuGet Package**
+   ```bash
+   dotnet pack src/DeltaTrace/DeltaTrace.csproj -c Release
+   ```
+   
+   This will create the package in `src/DeltaTrace/bin/Release/`
+
+5. **Test the Package Locally** (Optional)
+   ```bash
+   # Create a local NuGet source
+   dotnet nuget add source /path/to/local/packages -n LocalPackages
+   
+   # Push to local source
+   dotnet nuget push src/DeltaTrace/bin/Release/DeltaTrace.*.nupkg --source LocalPackages
+   ```
+
+6. **Publish to NuGet.org**
+   ```bash
+   dotnet nuget push src/DeltaTrace/bin/Release/DeltaTrace.*.nupkg \
+     --api-key YOUR_API_KEY \
+     --source https://api.nuget.org/v3/index.json
+   ```
+
+7. **Create a GitHub Release**
+   - Tag the commit: `git tag v1.0.1`
+   - Push the tag: `git push origin v1.0.1`
+   - Create a release on GitHub with the same release notes
+
+#### Automated Releases (GitHub Actions)
+
+For automated releases, create `.github/workflows/release.yml`:
+
+```yaml
+name: Release to NuGet
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build -c Release --no-restore
+    
+    - name: Test
+      run: dotnet test -c Release --no-build
+    
+    - name: Pack
+      run: dotnet pack src/DeltaTrace/DeltaTrace.csproj -c Release --no-build
+    
+    - name: Push to NuGet
+      run: dotnet nuget push src/DeltaTrace/bin/Release/*.nupkg 
+           --api-key ${{ secrets.NUGET_API_KEY }}
+           --source https://api.nuget.org/v3/index.json
+           --skip-duplicate
+```
+
+Don't forget to add your NuGet API key as a GitHub secret named `NUGET_API_KEY`.
+
 ## Contributing
 
 Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
